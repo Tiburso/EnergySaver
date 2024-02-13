@@ -28,7 +28,7 @@ API_KEY = os.environ.get("OPENAPI_KEY")
 # This will listen to both file creation and update events of this dataset:
 # https://dataplatform.knmi.nl/dataset/radar-echotopheight-5min-1-0
 # This topic should have one event every 5 minutes
-TOPIC = "dataplatform/file/v1/radar_echotopheight_5min/1.0/#"
+TOPIC = "dataplatform/file/v1/Actuele10mindataKNMIstations/2/#"
 
 PROTOCOL = mqtt.MQTTv5
 
@@ -60,12 +60,20 @@ def connect_mqtt() -> mqtt.Client:
     # TODO: check if there are any important properties that are needed to set first
     connect_properties = properties.Properties(properties.PacketTypes.CONNECT)
 
+    connect_properties.SessionExpiryInterval = 3600
+
     # The MQTT username is not used for authentication, only the token
     username = "token"
     client.username_pw_set(username, NOTIFICATION_TOKEN)
     client.on_connect = on_connect
 
-    client.connect(host=BROKER_DOMAIN, port=443, keepalive=60, clean_start=False)
+    client.connect(
+        host=BROKER_DOMAIN,
+        port=443,
+        keepalive=60,
+        clean_start=False,
+        properties=connect_properties,
+    )
 
     return client
 
@@ -76,17 +84,21 @@ def subscribe(client: mqtt.Client, topic: str):
         # A couple of seconds seems fine, a minute is definitely too long.
         global api
 
-        logger.debug(
+        logger.info(
             f"Received message on topic {message.topic}: {str(message.payload)}"
         )
 
         # Decode the payload using the json libary
-        with json.loads(message.payload) as payload:
-            dataset_name = payload["data"]["datasetName"]
-            dataset_version = payload["data"]["datasetVersion"]
-            latest_file = payload["data"]["filename"]
+        payload = json.loads(message.payload)
 
-        ds = api.get_file(dataset_name, dataset_version, latest_file)
+        dataset_name = payload["data"]["datasetName"]
+        dataset_version = payload["data"]["datasetVersion"]
+        latest_file = payload["data"]["filename"]
+
+        file_url = api.get_file_url(dataset_name, dataset_version, latest_file)
+
+        ds = api.download_file_into_xarray(file_url)
+
         df = ds.to_dataframe()
 
         print(df.head())

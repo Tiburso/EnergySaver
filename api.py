@@ -30,16 +30,18 @@ class OpenDataAPI:
             params=params,
         )
 
-    def get_file(
+    def get_file_url(
         self, dataset_name: str, dataset_version: str, file_name: str
     ) -> xr.Dataset:
-        download_url = self.__get_data(
+        res = self.__get_data(
             f"{self.base_url}/datasets/{dataset_name}/versions/{dataset_version}/files/{file_name}/url"
         )
 
-        return self._download_file_into_xarray(download_url)
+        logger.info(f"Downloading file from {res['temporaryDownloadUrl']}")
 
-    def _download_file_into_xarray(self, download_url: str) -> xr.Dataset:
+        return res["temporaryDownloadUrl"]
+
+    def download_file_into_xarray(self, download_url: str) -> xr.Dataset:
         try:
             with requests.get(download_url, stream=True) as r:
                 r.raise_for_status()
@@ -49,11 +51,11 @@ class OpenDataAPI:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
 
-                # Open the file using xarray
-                ds = xr.open_dataset("/tmp/temp.nc", cache=True, engine="h5netcdf")
+            # Open the file using xarray
+            ds = xr.open_dataset("/tmp/temp.nc", cache=True)
 
-                # Delete the temporary file
-                os.remove("/tmp/temp.nc")
+            # Delete the temporary file
+            os.remove("/tmp/temp.nc")
 
         except Exception:
             logger.exception("Unable to download file using download URL")
