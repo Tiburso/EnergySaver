@@ -39,15 +39,12 @@ def connect_mqtt() -> mqtt.Client:
     client.tls_set(tls_version=ssl.PROTOCOL_TLS)
     connect_properties = properties.Properties(properties.PacketTypes.CONNECT)
     
-    # Maximum is 3600
-    connect_properties.SessionExpiryInterval = 3600
-
     # The MQTT username is not used for authentication, only the token
     username = "token"
     client.username_pw_set(username, TOKEN)
     client.on_connect = on_connect
 
-    client.connect(host=BROKER_DOMAIN, port=443, keepalive=60, clean_start=False, properties=connect_properties)
+    client.connect(host=BROKER_DOMAIN, port=443, keepalive=60, clean_start=False)
 
     return client
 
