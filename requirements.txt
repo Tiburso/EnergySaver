@@ -4,3 +4,4 @@ paho-mqtt
 pandas
 xarray
 h5netcdf
+matplotlib
