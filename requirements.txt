@@ -1,3 +1,6 @@
 requests
 python-dotenv
 paho-mqtt
+pandas
+xarray
+h5netcdf
