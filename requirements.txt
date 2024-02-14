@@ -6,3 +6,4 @@ xarray
 h5netcdf
 matplotlib
 confluent-kafka
+pyspark
