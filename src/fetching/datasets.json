@@ -1,0 +1,28 @@
+{
+    "continuous": [
+        {
+            "name": "Actuele10mindataKNMIstations",
+            "version": "2"
+        },
+
+        {
+            "name": "precipitation_NL_ensemble_nowcast_5min",
+            "version": "1.0"
+        },
+        {
+            "name": "zonneschijnduur_en_straling",
+            "version": "2.0"
+        }
+    ],
+
+    "historical": [
+        {
+            "name": "knmi23_user_friendly_racmo",
+            "version": "2.0"
+        },
+        {
+            "name": "hot_air_balloon_derived_winds",
+            "version": "2.0"
+        }
+    ]
+}
