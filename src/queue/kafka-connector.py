@@ -1,9 +1,12 @@
 from kafka import KafkaProducer
-import socket
+import json
+from json import dumps
 
-conf = {"bootstrap_servers": "localhost:29092", "client_id": socket.gethostname()}
+p = KafkaProducer(
+    bootstrap_servers=["localhost:29092"],
+    value_serializer=lambda x: dumps(x).encode("utf-8"),
+)
 
-producer = KafkaProducer(**conf)
-
-producer.send("test", b"Hello, World!", key=b"key")
-producer.flush()
+data = {"name": "blahbasdas", "age": 12, "type": "dog"}
+p.send("Tutorial2.pets", value=data)
+p.flush()
