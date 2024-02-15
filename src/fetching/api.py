@@ -92,6 +92,19 @@ class OpenDataAPI:
             logger.warning("Failed to download the following dataset files:")
             logger.warning(list(map(lambda x: x[1], failed_downloads)))
 
+    def get_last_file(self) -> xr.Dataset:
+        # sort the files in descending order and only retrieve the first file
+        params = {"maxKeys": 1, "orderBy": "created", "sorting": "desc"}
+        response = self.list_files(params)
+        if "error" in response:
+            logger.error(f"Unable to retrieve list of files: {response['error']}")
+            sys.exit(1)
+
+        latest_file = response["files"][0].get("filename")
+        logger.info(f"Latest file is: {latest_file}")
+
+        return self.get_file(latest_file)
+
     def get_file(self, file_name: str) -> xr.Dataset:
         temporary_download_url = self.get_file_url(file_name)
         return self.download_file_into_xarray(temporary_download_url)
@@ -149,18 +162,7 @@ def main():
 
     api = OpenDataAPI()
 
-    # sort the files in descending order and only retrieve the first file
-    params = {"maxKeys": 1, "orderBy": "created", "sorting": "desc"}
-    response = api.list_files(dataset_name, dataset_version, params)
-    if "error" in response:
-        logger.error(f"Unable to retrieve list of files: {response['error']}")
-        sys.exit(1)
-
-    latest_file = response["files"][0].get("filename")
-    logger.info(f"Latest file is: {latest_file}")
-
-    # fetch the download url and download the file
-    ds = api.get_file(dataset_name, dataset_version, latest_file)
+    ds = api.get_last_file()
     df = ds.to_dataframe()
 
     print(ds)
