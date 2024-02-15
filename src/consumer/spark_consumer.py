@@ -3,7 +3,8 @@ from pyspark.sql import SparkSession
 
 # Initialize Spark Session
 spark = (
-    SparkSession.builder.appName("PySparkKafkaConsumer")
+    SparkSession.builder.master("local[*]")
+    .appName("PySparkKafkaConsumer")
     .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.3")
     .getOrCreate()
 )
