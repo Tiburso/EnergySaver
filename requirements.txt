@@ -5,5 +5,5 @@ pandas
 xarray
 h5netcdf
 matplotlib
-confluent-kafka
+kafka-python
 pyspark

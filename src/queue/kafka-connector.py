@@ -1,9 +1,9 @@
-from confluent_kafka import Producer
+from kafka import KafkaProducer
 import socket
 
-conf = {"bootstrap.servers": "localhost:29092", "client.id": socket.gethostname()}
+conf = {"bootstrap_servers": "localhost:29092", "client_id": socket.gethostname()}
 
-producer = Producer(conf)
+producer = KafkaProducer(**conf)
 
-producer.produce("test", key="key", value="value")
+producer.send("test", b"Hello, World!", key=b"key")
 producer.flush()
