@@ -1,13 +1,14 @@
 import logging
 import os
 import sys
-
+import asyncio
 import requests
 
 import xarray as xr
-import pandas as pd
 
+from typing import List, Dict
 from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
 
@@ -17,24 +18,88 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 
 class OpenDataAPI:
-    def __init__(self, api_token: str):
+    def __init__(
+        self, dataset_name: str, dataset_version: str, bulk_download: bool = False
+    ):
         self.base_url = "https://api.dataplatform.knmi.nl/open-data/v1"
+
+        self.dataset_name = dataset_name
+        self.dataset_version = dataset_version
+
+        # Check if bulk download is required because the documentation is ambiguous
+        if bulk_download:
+            api_token = os.environ.get("OPENAPI_BULK_KEY")
+        else:
+            api_token = os.environ.get("OPENAPI_KEY")
+
         self.headers = {"Authorization": api_token}
+        self.session = None
 
     def __get_data(self, url, params=None):
+        # If a session is already created, use it
+        if self.session is not None:
+            return self.session.get(url, headers=self.headers, params=params).json()
+
         return requests.get(url, headers=self.headers, params=params).json()
 
-    def list_files(self, dataset_name: str, dataset_version: str, params: dict):
+    def list_files(self, params: dict) -> Dict:
         return self.__get_data(
-            f"{self.base_url}/datasets/{dataset_name}/versions/{dataset_version}/files",
+            f"{self.base_url}/datasets/{self.dataset_name}/versions/{self.dataset_version}/files",
             params=params,
         )
 
-    def get_file_url(
-        self, dataset_name: str, dataset_version: str, file_name: str
-    ) -> xr.Dataset:
+    async def get_all_files(self, max_keys: int = 500):
+        # Store the session token
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
+
+        filenames = []
+        filesizes = []
+        next_page_token = None
+
+        # Retrieve all file names and file sizes
+        while True:
+            response = self.list_files(
+                {"maxKeys": str(max_keys), "nextPageToken": next_page_token}
+            )
+
+            dataset_files: List[Dict] = response.get("files")
+            filenames.extend(map(lambda x: x.get("filename"), dataset_files))
+            filesizes.extend(file["size"] for file in dataset_files)
+
+            next_page_token = response.get("nextPageToken")
+            if next_page_token is None:
+                logger.info("Retrieved names of all dataset files")
+                break
+
+        logger.info(f"Number of files to download: {len(filenames)}")
+
+        worker_count = get_max_worker_count(filesizes)
+        executor = ThreadPoolExecutor(max_workers=worker_count)
+
+        # Download all files
+        futures = []
+        for filename in filenames:
+            futures.append(executor.submit(self.get_file, filename))
+
+        # Wait for all files to be downloaded
+        results = await asyncio.gather(*futures)
+        logger.info(f"Finished '{self.dataset_name}' dataset download")
+
+        # Warn if any files failed to download
+        failed_downloads = list(filter(lambda x: not x[0], results))
+        if len(failed_downloads) > 0:
+            logger.warning("Failed to download the following dataset files:")
+            logger.warning(list(map(lambda x: x[1], failed_downloads)))
+
+    def get_file(self, file_name: str) -> xr.Dataset:
+        temporary_download_url = self.get_file_url(file_name)
+        return self.download_file_into_xarray(temporary_download_url)
+
+    def get_file_url(self, file_name: str) -> xr.Dataset:
+
         res = self.__get_data(
-            f"{self.base_url}/datasets/{dataset_name}/versions/{dataset_version}/files/{file_name}/url"
+            f"{self.base_url}/datasets/{self.dataset_name}/versions/{self.dataset_version}/files/{file_name}/url"
         )
 
         logger.info(f"Downloading file from {res['temporaryDownloadUrl']}")
@@ -64,13 +129,25 @@ class OpenDataAPI:
         return ds
 
 
+def get_max_worker_count(filesizes):
+    size_for_threading = 10_000_000  # 10 MB
+
+    average = sum(filesizes) / len(filesizes)
+
+    # to prevent downloading multiple half files in case of a network failure with big files
+    if average > size_for_threading:
+        threads = 1
+    else:
+        threads = 10
+    return threads
+
+
 def main():
-    api_key = os.environ.get("OPENAPI_KEY")
+    # Dataset Name and Version should be provided by the user
     dataset_name = "Actuele10mindataKNMIstations"
     dataset_version = "2"
-    logger.info(f"Fetching latest file of {dataset_name} version {dataset_version}")
 
-    api = OpenDataAPI(api_token=api_key)
+    api = OpenDataAPI()
 
     # sort the files in descending order and only retrieve the first file
     params = {"maxKeys": 1, "orderBy": "created", "sorting": "desc"}
