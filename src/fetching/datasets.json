@@ -2,19 +2,16 @@
     "continuous": [
         {
             "name": "Actuele10mindataKNMIstations",
-            "version": "2",
-            "topic": "data.actuele10mindataknmistations"
+            "version": "2"
         },
 
         {
             "name": "precipitation_NL_ensemble_nowcast_5min",
-            "version": "1.0",
-            "topic": "data.precipitation_nl_ensemble_nowcast_5min"
+            "version": "1.0"
         },
         {
             "name": "zonneschijnduur_en_straling",
-            "version": "2.0",
-            "topic": "data.zonneschijnduur_en_straling"
+            "version": "2.0"
         }
     ],
 

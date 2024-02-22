@@ -59,10 +59,7 @@ class Notifier:
             logger.info(f"Connection result: {str(rc)}")
 
             # Subscribe here so it is automatically done after disconnect
-            for dataset in self.datasets["continuous"]:
-                logger.info(f"Subscribing to dataset: {dataset['name']}")
-
-                self.subscribe(dataset["name"], dataset["version"], dataset["topic"])
+            self.subscribe(datasets=self.datasets["continuous"])
 
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
@@ -91,18 +88,20 @@ class Notifier:
             properties=connect_properties,
         )
 
-    def subscribe(self, name: str, version: str, kafka_topic: str):
+    def subscribe(self, datasets: dict):
         def on_message(c: mqtt.Client, userdata: None, message: mqtt.MQTTMessage):
-            logger.info(
+
+            logger.info(f"Received message on topic {message.topic}")
+            logger.debug(
                 f"Received message on topic {message.topic}: {str(message.payload)}"
             )
 
             # Decode the payload using the json libary
             payload = json.loads(message.payload)
 
-            dataset_name = payload["data"]["datasetName"]
-            dataset_version = payload["data"]["datasetVersion"]
-            latest_file = payload["data"]["filename"]
+            dataset_name: str = payload["data"]["datasetName"]
+            dataset_version: str = payload["data"]["datasetVersion"]
+            latest_file: str = payload["data"]["filename"]
 
             file_url = self.api.get_file_url(dataset_name, dataset_version, latest_file)
             ds = self.api.download_file_into_xarray(file_url)
@@ -110,19 +109,27 @@ class Notifier:
             # Convert the xarray dataset into a json so kafka can handle it
             df = ds.to_dataframe().to_json()
 
+            logger.debug(f"Converted file {latest_file} to json")
+
             # Upload this file into a kafka topic
+            kafka_topic = f"data.{dataset_name.lower()}"
             self.publisher.send(kafka_topic, df)
 
-        def on_subscribe(c: mqtt, userdata, mid, granted_qos, *other):
-            logger.info(f"Subscribed to topic '{topic}'")
+            logger.info(f"Uploaded file {latest_file} to kafka topic {kafka_topic}")
 
-        topic = f"{TOPIC_URL}/{name}/{version}/#"
+        def on_subscribe(c: mqtt, userdata, mid, granted_qos, *other):
+            logger.info(f"Subscribed to topic with message ID: {mid}")
+
+        topics = [
+            (f"{TOPIC_URL}/{dataset['name']}/{dataset['version']}/#", 1)
+            for dataset in datasets
+        ]
 
         self.client.on_subscribe = on_subscribe
         self.client.on_message = on_message
 
         # QOS=1 is used to ensure that the message is delivered at least once
-        self.client.subscribe(topic, qos=1)
+        self.client.subscribe(topics, qos=1)
 
     def run(self):
         self.client.enable_logger(logger=logger)
