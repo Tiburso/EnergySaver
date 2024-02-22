@@ -102,4 +102,4 @@ services:
     volumes:
       - ./conf/config-replica.js:/config-replica.js
     command: sleep 10 && mongosh --host mongodb /config-replica.js && sleep 10
-    restart: never
+    restart: no
