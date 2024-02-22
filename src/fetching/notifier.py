@@ -23,9 +23,6 @@ CLIENT_ID = os.environ.get("UUID")
 # Obtain your token at: https://developer.dataplatform.knmi.nl/notification-service
 NOTIFICATION_TOKEN = os.environ.get("NOTIFICATION_KEY")
 
-# Obtain your token at: https://developer.dataplatform.knmi.nl/open-data
-API_KEY = os.environ.get("OPENAPI_KEY")
-
 TOPIC_URL = "dataplatform/file/v1"
 
 PROTOCOL = mqtt.MQTTv5
@@ -34,15 +31,23 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel("INFO")
 
-api = OpenDataAPI(API_KEY)
-
 
 class Notifier:
     def __init__(self, datasets: str) -> mqtt.Client:
-        self.api = OpenDataAPI(API_KEY)
+        self.api = OpenDataAPI()
         self.publisher = KafkaPublisher()
 
-        self.datasets = json.load(datasets)
+        # Python shenenigans for file path
+        cwd = os.path.dirname(__file__)
+        datasets = os.path.join(cwd, datasets)
+
+        with open(datasets, "r") as datasets:
+            self.datasets = json.load(datasets)
+
+        logger.info(
+            f"Notifier initialized with datasets: {self.datasets['continuous']}"
+        )
+
         self._connect_mqtt()
 
     def _connect_mqtt(self):
@@ -55,6 +60,8 @@ class Notifier:
 
             # Subscribe here so it is automatically done after disconnect
             for dataset in self.datasets["continuous"]:
+                logger.info(f"Subscribing to dataset: {dataset['name']}")
+
                 self.subscribe(dataset["name"], dataset["version"], dataset["topic"])
 
         self.client = mqtt.Client(
@@ -86,10 +93,7 @@ class Notifier:
 
     def subscribe(self, name: str, version: str, kafka_topic: str):
         def on_message(c: mqtt.Client, userdata: None, message: mqtt.MQTTMessage):
-            nonlocal topic
-
-            logger.info(f"Received message on topic {message.topic}")
-            logger.debug(
+            logger.info(
                 f"Received message on topic {message.topic}: {str(message.payload)}"
             )
 
@@ -110,7 +114,6 @@ class Notifier:
             self.publisher.send(kafka_topic, df)
 
         def on_subscribe(c: mqtt, userdata, mid, granted_qos, *other):
-            nonlocal topic
             logger.info(f"Subscribed to topic '{topic}'")
 
         topic = f"{TOPIC_URL}/{name}/{version}/#"
