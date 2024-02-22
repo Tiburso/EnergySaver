@@ -109,7 +109,7 @@ class OpenDataAPI:
         temporary_download_url = self.get_file_url(file_name)
         return self.download_file_into_xarray(temporary_download_url)
 
-    def get_file_url(self, file_name: str) -> xr.Dataset:
+    def get_file_url(self, file_name: str) -> str:
 
         res = self.__get_data(
             f"{self.base_url}/datasets/{self.dataset_name}/versions/{self.dataset_version}/files/{file_name}/url"
@@ -153,21 +153,3 @@ def get_max_worker_count(filesizes):
     else:
         threads = 10
     return threads
-
-
-def main():
-    # Dataset Name and Version should be provided by the user
-    dataset_name = "Actuele10mindataKNMIstations"
-    dataset_version = "2"
-
-    api = OpenDataAPI()
-
-    ds = api.get_last_file()
-    df = ds.to_dataframe()
-
-    print(ds)
-    print(df.head())
-
-
-if __name__ == "__main__":
-    main()

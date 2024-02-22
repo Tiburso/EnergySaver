@@ -3,18 +3,18 @@
         {
             "name": "Actuele10mindataKNMIstations",
             "version": "2",
-            "queue": "data.actuele10mindataknmistations"
+            "topic": "data.actuele10mindataknmistations"
         },
 
         {
             "name": "precipitation_NL_ensemble_nowcast_5min",
             "version": "1.0",
-            "queue": "data.precipitation_nl_ensemble_nowcast_5min"
+            "topic": "data.precipitation_nl_ensemble_nowcast_5min"
         },
         {
             "name": "zonneschijnduur_en_straling",
             "version": "2.0",
-            "queue": "data.zonneschijnduur_en_straling"
+            "topic": "data.zonneschijnduur_en_straling"
         }
     ],
 
@@ -22,12 +22,12 @@
         {
             "name": "knmi23_user_friendly_racmo",
             "version": "2.0",
-            "queue": "data.knmi23_user_friendly_racmo"
+            "topic": "data.knmi23_user_friendly_racmo"
         },
         {
             "name": "hot_air_balloon_derived_winds",
             "version": "2.0",
-            "queue": "data.hot_air_balloon_derived_winds"
+            "topic": "data.hot_air_balloon_derived_winds"
         }
     ]
 }
