@@ -18,13 +18,8 @@ logger.setLevel(os.environ.get("LOG_LEVEL", logging.INFO))
 
 
 class OpenDataAPI:
-    def __init__(
-        self, dataset_name: str, dataset_version: str, bulk_download: bool = False
-    ):
+    def __init__(self, bulk_download: bool = False):
         self.base_url = "https://api.dataplatform.knmi.nl/open-data/v1"
-
-        self.dataset_name = dataset_name
-        self.dataset_version = dataset_version
 
         # Check if bulk download is required because the documentation is ambiguous
         if bulk_download:
@@ -42,13 +37,15 @@ class OpenDataAPI:
 
         return requests.get(url, headers=self.headers, params=params).json()
 
-    def list_files(self, params: dict) -> Dict:
+    def list_files(self, dataset_name: str, dataset_version: str, params: dict) -> Dict:
         return self.__get_data(
-            f"{self.base_url}/datasets/{self.dataset_name}/versions/{self.dataset_version}/files",
+            f"{self.base_url}/datasets/{dataset_name}/versions/{dataset_version}/files",
             params=params,
         )
 
-    async def get_all_files(self, max_keys: int = 500):
+    async def get_all_files(
+        self, dataset_name: str, dataset_version: str, max_keys: int = 500
+    ):
         # Store the session token
         self.session = requests.Session()
         self.session.headers.update(self.headers)
@@ -60,7 +57,9 @@ class OpenDataAPI:
         # Retrieve all file names and file sizes
         while True:
             response = self.list_files(
-                {"maxKeys": str(max_keys), "nextPageToken": next_page_token}
+                dataset_name,
+                dataset_version,
+                {"maxKeys": str(max_keys), "nextPageToken": next_page_token},
             )
 
             dataset_files: List[Dict] = response.get("files")
@@ -92,10 +91,11 @@ class OpenDataAPI:
             logger.warning("Failed to download the following dataset files:")
             logger.warning(list(map(lambda x: x[1], failed_downloads)))
 
-    def get_last_file(self) -> xr.Dataset:
+    def get_last_file(self, dataset_name: str, dataset_version: str) -> xr.Dataset:
         # sort the files in descending order and only retrieve the first file
         params = {"maxKeys": 1, "orderBy": "created", "sorting": "desc"}
-        response = self.list_files(params)
+
+        response = self.list_files(dataset_name, dataset_version, params)
         if "error" in response:
             logger.error(f"Unable to retrieve list of files: {response['error']}")
             sys.exit(1)
@@ -109,10 +109,12 @@ class OpenDataAPI:
         temporary_download_url = self.get_file_url(file_name)
         return self.download_file_into_xarray(temporary_download_url)
 
-    def get_file_url(self, file_name: str) -> str:
+    def get_file_url(
+        self, dataset_name: str, dataset_version: str, file_name: str
+    ) -> str:
 
         res = self.__get_data(
-            f"{self.base_url}/datasets/{self.dataset_name}/versions/{self.dataset_version}/files/{file_name}/url"
+            f"{self.base_url}/datasets/{dataset_name}/versions/{dataset_version}/files/{file_name}/url"
         )
 
         logger.info(f"Downloading file from {res['temporaryDownloadUrl']}")
